@@ -8,7 +8,7 @@ O `digital-onboarding` é uma aplicação monolítica modular que consome três 
 
 - **[banking-foundation](https://github.com/odevpedro/banking-foundation)** — Framework corporativo (core, web, observability, security, audit, test-support)
 - **[nucleo-validacao](https://github.com/odevpedro/nucleo-validacao)** — Gateway de validações PL/SQL (Oracle)
-- **[bacen-regulatorio](https://github.com/odevpedro/bacen_regulatorio)** — Biblioteca de regras regulatórias BACEN (10 módulos normativos)
+- **[bacen-regulatorio](https://github.com/odevpedro/bacen-regulatorio)** — Biblioteca de regras regulatórias BACEN (10 módulos normativos)
 
 ### Diagrama de Contexto
 
