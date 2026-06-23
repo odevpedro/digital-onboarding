@@ -1,5 +1,11 @@
 version: "3.8"
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -16,6 +22,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging: *default-logging
 
   minio:
     image: minio/minio:latest
@@ -33,6 +40,41 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
+
+  minio-init:
+    image: minio/mc:latest
+    entrypoint: >
+      /bin/sh -c "
+      until mc ls local/ > /dev/null 2>&1; do
+        echo 'Waiting for MinIO...';
+        sleep 2;
+        mc alias set local http://minio:9000 minioadmin minioadmin;
+      done;
+      mc mb local/onboarding-documentos --ignore-existing;
+      echo 'MinIO bucket ready: onboarding-documentos';
+      "
+    depends_on:
+      minio:
+        condition: service_healthy
+    logging: *default-logging
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: onboarding
+      RABBITMQ_DEFAULT_PASS: onboarding
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
 
   backend:
     build:
@@ -44,13 +86,75 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/onboarding
       SPRING_DATASOURCE_USERNAME: onboarding
       SPRING_DATASOURCE_PASSWORD: onboarding
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: onboarding
+      SPRING_RABBITMQ_PASSWORD: onboarding
       ONBOARDING_STORAGE_MINIO_URL: http://minio:9000
+      ONBOARDING_STORAGE_MINIO_ACCESS-KEY: minioadmin
+      ONBOARDING_STORAGE_MINIO_SECRET-KEY: minioadmin
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    logging: *default-logging
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    logging: *default-logging
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    depends_on:
+      - backend
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: ""
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    logging: *default-logging
+
+  nucleo-validacao-mock:
+    build:
+      context: nucleo-validacao-mock
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    logging: *default-logging
 
 volumes:
   pg-data:
   minio-data:
+  rabbitmq-data:
+  prometheus-data:
+  grafana-data:

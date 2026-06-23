@@ -9,4 +9,6 @@ dist/
 .idea/
 *.iml
 .vscode/
-.angular/cache/
+.angular/
+frontend/.angular/
+**/.angular/cache/

@@ -3,6 +3,9 @@ package com.empresa.onboarding.controller;
 import com.empresa.onboarding.controller.dto.RejeitarDocumentoRequest;
 import com.empresa.onboarding.domain.documentos.Documento;
 import com.empresa.onboarding.domain.documentos.DocumentoService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 
+@Tag(name = "Documentos", description = "Upload e aprovacao de documentos da proposta")
 @RestController
 @RequestMapping("/api/propostas/{propostaId}/documentos")
 public class DocumentoController {
@@ -23,11 +27,15 @@ public class DocumentoController {
         this.documentoService = documentoService;
     }
 
+    @Operation(summary = "Listar documentos", description = "Retorna todos os documentos de uma proposta")
     @GetMapping
     public ResponseEntity<List<Documento>> listar(@PathVariable String propostaId) {
         return ResponseEntity.ok(documentoService.listarPorProposta(propostaId));
     }
 
+    @Operation(summary = "Upload de documento", description = "Faz upload de um documento para a proposta")
+    @ApiResponse(responseCode = "200", description = "Documento enviado")
+    @ApiResponse(responseCode = "400", description = "Arquivo invalido ou vazio")
     @PostMapping
     public ResponseEntity<Documento> upload(
             @PathVariable String propostaId,
@@ -43,11 +51,13 @@ public class DocumentoController {
         return ResponseEntity.ok(doc);
     }
 
+    @Operation(summary = "Aprovar documento", description = "Aprova um documento pendente")
     @PostMapping("/{documentoId}/aprovar")
     public ResponseEntity<Documento> aprovar(@PathVariable String documentoId) {
         return ResponseEntity.ok(documentoService.aprovarDocumento(documentoId));
     }
 
+    @Operation(summary = "Rejeitar documento", description = "Rejeita um documento com motivo")
     @PostMapping("/{documentoId}/rejeitar")
     public ResponseEntity<Documento> rejeitar(
             @PathVariable String documentoId,

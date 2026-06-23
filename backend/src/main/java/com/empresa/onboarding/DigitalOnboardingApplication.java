@@ -13,3 +13,4 @@ public class DigitalOnboardingApplication {
         SpringApplication.run(DigitalOnboardingApplication.class, args);
     }
 }
+

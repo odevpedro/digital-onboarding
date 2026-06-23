@@ -1,0 +1,40 @@
+{
+  "title": "Foundation Overview",
+  "uid": "foundation-overview",
+  "version": 1,
+  "panels": [
+    {
+      "title": "JVM Memory",
+      "type": "graph",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "jvm_memory_used_bytes{application=\"digital-onboarding\", area=\"heap\"}", "legendFormat": "Heap" },
+        { "expr": "jvm_memory_used_bytes{application=\"digital-onboarding\", area=\"nonheap\"}", "legendFormat": "Non-Heap" }
+      ]
+    },
+    {
+      "title": "HTTP Requests /s",
+      "type": "graph",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "rate(http_server_requests_seconds_count{application=\"digital-onboarding\"}[1m])", "legendFormat": "{{method}} {{uri}}" }
+      ]
+    },
+    {
+      "title": "Outbox Events",
+      "type": "graph",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "rate(outbox_events_total{application=\"digital-onboarding\"}[1m])", "legendFormat": "Events/s" }
+      ]
+    },
+    {
+      "title": "JVM Threads",
+      "type": "graph",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "jvm_threads_live_threads{application=\"digital-onboarding\"}", "legendFormat": "Live" }
+      ]
+    }
+  ]
+}

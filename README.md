@@ -82,49 +82,53 @@ stateDiagram-v2
   CANCELADO --> [*]
 ```
 
-## Pré-requisitos
+## Stack de Infraestrutura
 
-- Java 17+
-- Node.js 18+ (para o frontend Angular)
-- Docker e Docker Compose (para PostgreSQL e MinIO)
-- Maven 3.9+
+| Componente | Tecnologia | Porta |
+|------------|------------|-------|
+| Banco de dados | PostgreSQL 15 | 5432 |
+| Storage | MinIO | 9000 (API) / 9001 (Console) |
+| Message broker | RabbitMQ 3.13 | 5672 (AMQP) / 15672 (Management) |
+| Métricas | Prometheus | 9090 |
+| Dashboards | Grafana 11 | 3000 (admin/admin) |
+| Mock externo | Núcleo Validação (Python) | 8081 |
+| Frontend | Nginx + Angular 17 | 4200 |
 
 ## Estrutura do Projeto
 
 ```
 digital-onboarding/
-├── pom.xml                    # Parent POM multi-módulo
-├── docker-compose.yml         # Infra local (PostgreSQL + MinIO + Backend)
+├── pom.xml                          # Parent POM multi-modulo
+├── docker-compose.yml               # Infra completa (10 servicos)
 ├── backend/
-│   ├── pom.xml                # POM do módulo Spring Boot
+│   ├── pom.xml
 │   ├── Dockerfile
 │   └── src/main/java/com/empresa/onboarding/
 │       ├── DigitalOnboardingApplication.java
-│       ├── config/            # OpenAPI, CORS
-│       ├── shared/            # correlation, idempotency, outbox, exception, security
-│       ├── state/             # OnboardingStateMachine, StatusProposta, EtapaOnboarding
-│       ├── domain/
-│       │   ├── proposta/      # PropostaOnboarding, HistoricoEstado, PropostaService
-│       │   ├── documentos/    # Documento, DocumentoService
-│       │   ├── compliance/    # ValidacaoCompliance, ComplianceService
-│       │   ├── risco/         # AnaliseRisco, RiscoService
-│       │   ├── consentimento/ # ConsentimentoOpenFinance, ConsentimentoService
-│       │   └── conta/         # ContaCriada, ContaService
+│       ├── config/                   # OpenAPI, CORS
+│       ├── state/                    # OnboardingStateMachine, StatusProposta
+│       ├── domain/                   # proposta, documentos, compliance, risco, consentimento, conta
 │       ├── integration/
-│       │   ├── nucleo/        # NucleoValidacaoClient (Feign), NucleoValidacaoFacade
-│       │   ├── bacen/         # RegrasRegulatoriasFacade (wrapper bacen-regulatorio)
-│       │   ├── simulador/     # 8 simuladores (Receita, Serpro, Biometria, etc.)
-│       │   └── storage/       # MinioStorageService
-│       └── controller/        # REST controllers
+│       │   ├── nucleo/               # NucleoValidacaoClient (Feign)
+│       │   ├── bacen/                # RegrasRegulatoriasFacade
+│       │   ├── outbox/               # RabbitMQ event handler + config
+│       │   ├── simulador/            # 8 simuladores internos
+│       │   └── storage/              # MinioStorageService
+│       └── controller/               # 6 REST controllers com OpenAPI
 ├── frontend/
-│   ├── package.json
-│   ├── angular.json
-│   └── src/app/
-│       ├── proposta-lista/    # Lista de propostas
-│       ├── proposta-detalhe/  # Detalhes com tabs (Dados, Docs, Compliance, Risco, etc.)
-│       └── proposta.service.ts
-└── docs/
-    └── postman/               # Coleção Postman (pendente)
+│   ├── Dockerfile                    # Multi-stage (node -> nginx)
+│   ├── nginx.conf                    # Proxy reverso /api -> backend
+│   └── src/
+├── prometheus/
+│   └── prometheus.yml                # Scrape config
+├── grafana/
+│   ├── datasources/datasource.yml    # Provisioning Prometheus
+│   └── dashboards/                   # Dashboards automaticos
+├── nucleo-validacao-mock/
+│   ├── Dockerfile
+│   └── server.py                     # Mock HTTP simples
+└── minio/
+    └── init.sh                        # Bucket init script
 ```
 
 ## Endpoints da API
@@ -176,70 +180,49 @@ digital-onboarding/
 
 ## Como Executar
 
-### 1. Infraestrutura (PostgreSQL + MinIO)
+### Stack completa (todos os serviços)
 
 ```bash
-docker compose up -d postgres minio
+docker compose up -d
 ```
 
-### 2. Backend
+Isso sobe: PostgreSQL, MinIO, RabbitMQ, backend, frontend, Prometheus, Grafana, mock do nucleo-validacao.
+
+Acessar:
+- **Frontend:** http://localhost:4200
+- **API:** http://localhost:8080
+- **Swagger:** http://localhost:8080/swagger-ui.html
+- **Prometheus:** http://localhost:9090
+- **Grafana:** http://localhost:3000 (admin/admin)
+- **RabbitMQ:** http://localhost:15672 (onboarding/onboarding)
+- **MinIO Console:** http://localhost:9001 (minioadmin/minioadmin)
+
+### Apenas dependências (dev local)
 
 ```bash
-cd backend
-./mvnw spring-boot:run
+docker compose up -d postgres minio rabbitmq prometheus grafana
+cd backend && ./mvnw spring-boot:run
+cd frontend && npm install && npm start
 ```
-
-Ou via Docker:
-
-```bash
-docker compose up -d backend
-```
-
-### 3. Frontend
-
-```bash
-cd frontend
-npm install
-npm start
-```
-
-Acessar: http://localhost:4200
 
 ## Testes
 
 ```bash
-cd backend
-./mvnw test
+cd backend && ./mvnw test
+# Com Testcontainers (PostgreSQL em container):
+./mvnw test -Dspring.profiles.active=test
 ```
-
-## Swagger UI
-
-http://localhost:8080/swagger-ui.html
 
 ## Decisões Técnicas
 
 - **Monólito modular**: cada domínio é um pacote separado dentro do mesmo deployable
 - **State Machine explícita**: toda transição de status passa pelo `OnboardingStateMachine`
-- **Idempotência**: header `Idempotency-Key` em POST/PUT/PATCH com cache de 24h
-- **Outbox Pattern**: eventos de domínio persistidos em tabela e processados por scheduler
-- **Correlation ID**: propagado via header `X-Correlation-Id` e MDC para logs
+- **Idempotência**: header `Idempotency-Key` em POST/PUT/PATCH com cache de 24h (banking-foundation)
+- **Outbox Pattern**: eventos persistidos em tabela `outbox_events` e roteados via RabbitMQ pelo `OutboxEventHandler` SPI
+- **Correlation ID**: propagado via header `X-Correlation-Id` e MDC para logs (banking-foundation)
+- **Métricas**: Prometheus via `micrometer-registry-prometheus` + dashboards Grafana
+- **Observabilidade**: stack completa com health checks, métricas e logs estruturados
 - **Simuladores internos**: dispensa dependências externas reais; cada simulador tem comportamento determinístico baseado no dígito verificador do documento
 - **RegrasRegulatoriasFacade**: centraliza todo uso do `bacen-regulatorio`; os controllers nunca acessam diretamente
-
-## Melhorias Futuras nas Dependências
-
-### banking-foundation
-- Implementar módulo `audit-jpa` com `@Auditable` e listener JPA
-- Implementar `security` com JWT e RBAC
-- Implementar `observability` com métricas e tracing distribuído
-- Publicar starter no GitHub Packages
-
-### nucleo-validacao
-- Adicionar OpenAPI/Swagger
-- Adicionar Feign client como artefato publicável
-- Suporte a PostgreSQL como alternativa ao Oracle
-
-### bacen-regulatorio
-- Publicar artefatos no GitHub Packages
-- Adicionar módulo de testes de conformidade regulatória
-- Adicionar suporte a regras parametrizáveis por YAML
+- **RabbitMQ**: outbox events publicados em exchange `outbox.exchange` com routing key `outbox.routing.{eventType}`
+- **Containerização**: todos os serviços empacotados com Docker e orquestrados via docker-compose

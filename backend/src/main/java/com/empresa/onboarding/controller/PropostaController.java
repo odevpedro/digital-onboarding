@@ -8,6 +8,9 @@ import com.empresa.onboarding.domain.proposta.HistoricoEstado;
 import com.empresa.onboarding.domain.proposta.PropostaOnboarding;
 import com.empresa.onboarding.domain.proposta.PropostaService;
 import com.empresa.onboarding.state.StatusProposta;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Tag(name = "Propostas", description = "Ciclo de vida da proposta de onboarding")
 @RestController
 @RequestMapping("/api/propostas")
 public class PropostaController {
@@ -27,6 +31,9 @@ public class PropostaController {
         this.propostaService = propostaService;
     }
 
+    @Operation(summary = "Criar proposta", description = "Inicia uma nova proposta de onboarding PF/PJ")
+    @ApiResponse(responseCode = "201", description = "Proposta criada")
+    @ApiResponse(responseCode = "400", description = "Dados invalidos")
     @PostMapping
     public ResponseEntity<PropostaOnboarding> criar(
             @Valid @RequestBody CriarPropostaRequest request,
@@ -36,11 +43,15 @@ public class PropostaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(proposta);
     }
 
+    @Operation(summary = "Listar propostas", description = "Retorna todas as propostas cadastradas")
     @GetMapping
     public ResponseEntity<List<PropostaOnboarding>> listar() {
         return ResponseEntity.ok(propostaService.listarTodas());
     }
 
+    @Operation(summary = "Buscar proposta", description = "Retorna uma proposta pelo ID")
+    @ApiResponse(responseCode = "200", description = "Proposta encontrada")
+    @ApiResponse(responseCode = "404", description = "Proposta nao encontrada")
     @GetMapping("/{id}")
     public ResponseEntity<PropostaOnboarding> buscar(@PathVariable String id) {
         try {
@@ -50,6 +61,9 @@ public class PropostaController {
         }
     }
 
+    @Operation(summary = "Atualizar dados pessoais", description = "Atualiza os dados pessoais de uma proposta existente")
+    @ApiResponse(responseCode = "200", description = "Dados atualizados")
+    @ApiResponse(responseCode = "422", description = "Proposta em estado invalido para atualizacao")
     @PutMapping("/{id}/dados-pessoais")
     public ResponseEntity<PropostaOnboarding> atualizarDadosPessoais(
             @PathVariable String id,
@@ -62,6 +76,9 @@ public class PropostaController {
         }
     }
 
+    @Operation(summary = "Cancelar proposta", description = "Cancela uma proposta existente")
+    @ApiResponse(responseCode = "200", description = "Proposta cancelada")
+    @ApiResponse(responseCode = "422", description = "Proposta em estado invalido para cancelamento")
     @PostMapping("/{id}/cancelar")
     public ResponseEntity<PropostaOnboarding> cancelar(
             @PathVariable String id,
@@ -75,11 +92,13 @@ public class PropostaController {
         }
     }
 
+    @Operation(summary = "Historico de estados", description = "Retorna o historico completo de transicoes de estado da proposta")
     @GetMapping("/{id}/historico")
     public ResponseEntity<List<HistoricoEstado>> historico(@PathVariable String id) {
         return ResponseEntity.ok(propostaService.historico(id));
     }
 
+    @Operation(summary = "Transicoes permitidas", description = "Lista as transicoes de estado validas para a proposta atual")
     @GetMapping("/{id}/transicoes-permitidas")
     public ResponseEntity<List<StatusProposta>> transicoesPermitidas(@PathVariable String id) {
         PropostaOnboarding proposta = propostaService.buscarPorId(id);
@@ -87,6 +106,9 @@ public class PropostaController {
         return ResponseEntity.ok(propostaService.buscarTransicoesPermitidas(atual));
     }
 
+    @Operation(summary = "Avancar proposta", description = "Transita a proposta para um novo estado")
+    @ApiResponse(responseCode = "200", description = "Proposta avancada")
+    @ApiResponse(responseCode = "422", description = "Transicao invalida")
     @PostMapping("/{id}/avancar")
     public ResponseEntity<PropostaOnboarding> avancar(
             @PathVariable String id,
