@@ -28,6 +28,36 @@ logging:
   level:
     com.empresa.onboarding: DEBUG
 
+foundation:
+  web:
+    correlation-enabled: true
+    jackson-time-zone: America/Sao_Paulo
+    cors-allowed-origins:
+      - "*"
+    cors-allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+  security:
+    enabled: true
+    public-paths:
+      - "/**"
+  audit:
+    enabled: false
+  observability:
+    mdc-enabled: true
+    metrics-enabled: true
+    application-name: digital-onboarding
+  idempotency:
+    enabled: true
+    ttl-hours: 24
+  outbox:
+    enabled: true
+    poll-interval-ms: 5000
+
 springdoc:
   api-docs:
     path: /api-docs
@@ -35,11 +65,6 @@ springdoc:
     path: /swagger-ui.html
 
 onboarding:
-  idempotency:
-    ttl-hours: 24
-  outbox:
-    enabled: true
-    poll-interval-ms: 5000
   simuladores:
     receita-federal:
       url: http://localhost:9991

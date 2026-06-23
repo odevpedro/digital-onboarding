@@ -2,7 +2,7 @@ package com.empresa.onboarding.controller;
 
 import com.empresa.onboarding.domain.proposta.PropostaOnboarding;
 import com.empresa.onboarding.domain.proposta.PropostaService;
-import com.empresa.onboarding.shared.idempotency.IdempotencyKeyRepository;
+import br.com.odevpedro.foundation.web.idempotency.IdempotencyKeyRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
